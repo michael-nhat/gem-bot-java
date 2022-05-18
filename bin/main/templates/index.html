@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Bot stress</title>
+</head>
+<body>
+<h1>Bot stress</h1>
+<hr>
+<p th:utext="${message}?${message}"></p>
+<hr>
+<h3 th:utext="|Số bot đã tạo ${botsSize} con|"></h3>
+<p>Tạo lịch trình thả bot</p>
+<form method="post" th:action="@{/start-bot}" th:object="${startBotForm}">
+    <label for="botSize">Số lượng bot thả</label>
+    <input type="number" id="botSize" th:field="*{botsSize}" min="1" required>
+    <br>
+    <label for="delayCreate">Thời gian tạo giữa 2 bot (giây)</label>
+    <input type="number" id="delayCreate" th:field="*{delayStartBot}" min="1" required>
+    <button type="submit">Tạo schedule</button>
+</form>
+<hr>
+<form method="post" th:action="@{/stop-bot}">
+    <button type="submit">Dừng schedule tạo bot</button>
+</form>
+<hr>
+<form method="post" th:action="@{/disconnect-bot}">
+    <button type="submit">Ngắt kết nối tất cả bot</button>
+</form>
+<form method="post" th:action="@{/reconnect-bot}">
+    <button type="submit">Kết nối lại tất cả bot</button>
+</form>
+<hr>
+<form method="post" th:action="@{/create-one-bot}">
+    <button type="submit">Thêm 1 con bot thôi!</button>
+</form>
+</body>
+</html>
