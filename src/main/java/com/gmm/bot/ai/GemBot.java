@@ -12,11 +12,14 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import sfs2x.client.entities.Room;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 @Component
 @Scope("prototype")
@@ -62,9 +65,9 @@ public class GemBot extends BaseBot{
         if (!isBotTurn()) {
             return;
         }
-        Optional<Hero> heroFullMana = botPlayer.anyHeroFullMana();
-        if (heroFullMana.isPresent()) {
-            taskScheduler.schedule(new SendReQuestSkill(heroFullMana.get()), new Date(System.currentTimeMillis() + delaySwapGem));
+        List<Hero> herosFullMana = botPlayer.herosFullMana();
+        if (!CollectionUtils.isEmpty(herosFullMana)) {
+            taskScheduler.schedule(new SendReQuestSkill(herosFullMana), new Date(System.currentTimeMillis() + delaySwapGem));
             return;
         }
         taskScheduler.schedule(new SendRequestSwapGem(), new Date(System.currentTimeMillis() + delaySwapGem));
@@ -133,16 +136,26 @@ public class GemBot extends BaseBot{
     }
 
     private class SendReQuestSkill implements Runnable {
-        private final Hero heroCastSkill;
+        private final List<Hero> herosCastSkill;
 
-        public SendReQuestSkill(Hero heroCastSkill) {
-            this.heroCastSkill = heroCastSkill;
+        public SendReQuestSkill(List<Hero> herosCastSkill) {
+            this.herosCastSkill = herosCastSkill;
+        }
+
+        private Hero bestestSkill(List<Hero> herosCastSkill) {
+            List<Hero> selfHeroesSkill = herosCastSkill.stream().filter(Hero::isHeroSelfSkill).collect(Collectors.toList());
+            List<Hero> attackHeroesSkill = herosCastSkill.stream().filter(h -> !h.isHeroSelfSkill()).collect(Collectors.toList());
+            if (CollectionUtils.isEmpty(herosCastSkill)) return null;
+            else if (!CollectionUtils.isEmpty(attackHeroesSkill)) return attackHeroesSkill.get(0);
+            else return selfHeroesSkill.get(0);
         }
 
         @Override
         public void run() {
-            data.putUtfString("casterId", heroCastSkill.getId().toString());
-            if (heroCastSkill.isHeroSelfSkill()) {
+            Hero hero = bestestSkill(herosCastSkill);
+            log.info("SendReQuestSkill: hero skill: {}", hero.getName());
+            data.putUtfString("casterId", hero.getId().toString());
+            if (hero.isHeroSelfSkill()) {
                 data.putUtfString("targetId", botPlayer.firstHeroAlive().getId().toString());
             } else {
                 data.putUtfString("targetId", enemyPlayer.firstHeroAlive().getId().toString());
@@ -150,7 +163,7 @@ public class GemBot extends BaseBot{
             data.putUtfString("selectedGem", String.valueOf(selectGem().getCode()));
             data.putUtfString("gemIndex", String.valueOf(ThreadLocalRandom.current().nextInt(64)));
             data.putBool("isTargetAllyOrNot",false);
-            log("sendExtensionRequest()|room:" + room.getName() + "|extCmd:" + ConstantCommand.USE_SKILL + "|Hero cast skill: " + heroCastSkill.getName());
+            log("sendExtensionRequest()|room:" + room.getName() + "|extCmd:" + ConstantCommand.USE_SKILL + "|Hero cast skill: " + hero.getName());
             sendExtensionRequest(ConstantCommand.USE_SKILL, data);
         }
 
@@ -159,10 +172,22 @@ public class GemBot extends BaseBot{
     private class SendRequestSwapGem implements Runnable {
         @Override
         public void run() {
-            Pair<Integer> indexSwap = grid.recommendSwapGem();
+            Pair<Integer> indexSwap = grid.recommendSwapGem(botPlayer, enemyPlayer);
+            log.info("SendRequestSwapGem: botPlayer={} {} {} {}", botPlayer.getId(), botPlayer.getDisplayName(), botPlayer.getRecommendGemType(), botPlayer.getHeroGemType());
+            List<Hero> botHeroes = botPlayer.getHeroes();
+            for (Hero h : botHeroes) {
+                log.info("Hero: botPlayer id={} name={} attack={} hp/maxHp={}/{} mana/maxMana={}/{} gemType={} playerId={}", h.getId(), h.getName(), h.getAttack(),
+                        h.getHp(), h.getMaxHp(), h.getMana(), h.getMaxMana(), h.getGemTypes(), h.getPlayerId());
+            }
+            log.info("SendRequestSwapGem: enemyPlayer={} name={} {} {}", enemyPlayer.getId(), enemyPlayer.getDisplayName(), enemyPlayer.getRecommendGemType(), enemyPlayer.getHeroGemType());
+            List<Hero> playerHeroes = enemyPlayer.getHeroes();
+            for (Hero h : playerHeroes) {
+                log.info("Hero: enemyPlayer id={} name={} attack={} hp/maxHp={}/{} mana/maxMana={}/{} gemType={} playerId={}", h.getId(), h.getName(), h.getAttack(),
+                        h.getHp(), h.getMaxHp(), h.getMana(), h.getMaxMana(), h.getGemTypes(), h.getPlayerId());
+            }
             data.putInt("index1", indexSwap.getParam1());
             data.putInt("index2", indexSwap.getParam2());
-            log("sendExtensionRequest()|room:" + room.getName() + "|extCmd:" + ConstantCommand.SWAP_GEM + "|index1: " + indexSwap.getParam1() + " index1: " + indexSwap.getParam2());
+            log("sendExtensionRequest()|room:" + room.getName() + "|extCmd:" + ConstantCommand.SWAP_GEM + "|index1: " + indexSwap.getParam1() + " index2: " + indexSwap.getParam2());
             sendExtensionRequest(ConstantCommand.SWAP_GEM, data);
         }
     }

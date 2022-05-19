@@ -73,12 +73,12 @@ public abstract class BaseBot implements IEventListener {
     }
 
     private void init() {
-        username = "nhat.hoangvan2";
+        username = "dai.nguyentuan";
         sfsClient = new SmartFox();
         data = new SFSObject();
         isJoinGameRoom = false;
         disconnect = false;
-        this.token = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJuaGF0LmhvYW5ndmFuIiwiYXV0aCI6IlJPTEVfVVNFUiIsIkxBU1RfTE9HSU5fVElNRSI6MTY1MjcwNzEwNTAyNCwiZXhwIjoxNjUyNzkzNTA1fQ.Z2Wejy7ahsgo2uMUqz4gthuC7qUWEbwlJ3NFZ1Lb1qJr_2MnJPsVw_i7GmmZeQEu8duXPrUXkJmGIPFfORWo3g"
+        this.token = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJkYWkubmd1eWVudHVhbiIsImF1dGgiOiJST0xFX1VTRVIiLCJMQVNUX0xPR0lOX1RJTUUiOjE2NTI4NzkzNzA2MjIsImV4cCI6MTY1NDY3OTM3MH0.gj66BEBptEhrjQT8xmwF4nxgTwOKiuepqFT4Dl_sDNQcviLeG_Ty191wgHlWGcsTI-WXgxb4xz66Y6Tyej4dNw"
         ;this.sfsClient.addEventListener(SFSEvent.CONNECTION, this);
         this.sfsClient.addEventListener(SFSEvent.CONNECTION_LOST, this);
         this.sfsClient.addEventListener(SFSEvent.LOGIN, this);

@@ -6,8 +6,10 @@ import com.smartfoxserver.v2.entities.data.ISFSArray;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.CollectionUtils;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Getter
@@ -16,6 +18,7 @@ public class Grid {
     private List<Gem> gems = new ArrayList<>();
     private Set<GemType> gemTypes = new HashSet<>();
     private Set<GemType> myHeroGemType;
+    private static Set<Gem> specialGem = new HashSet<>();
 
     public Grid(ISFSArray gemsCode,ISFSArray gemModifiers, Set<GemType> heroGemType) {
         updateGems(gemsCode,gemModifiers);
@@ -25,11 +28,13 @@ public class Grid {
     public void updateGems(ISFSArray gemsCode,ISFSArray gemModifiers ) {
         gems.clear();
         gemTypes.clear();
+        specialGem.clear();
         if(gemModifiers != null){
             for (int i = 0; i < gemsCode.size(); i++) {
                 Gem gem = new Gem(i, GemType.from(gemsCode.getByte(i)), GemModifier.from(gemModifiers.getByte(i)));
                 gems.add(gem);
                 gemTypes.add(gem.getType());
+                if (!gem.getModifier().equals(GemModifier.NONE)) specialGem.add(gem);
             }
         } else {
             for (int i = 0; i < gemsCode.size(); i++) {
@@ -42,27 +47,45 @@ public class Grid {
     }
 
 
-    public Pair<Integer> recommendSwapGem() {
+    public Pair<Integer> recommendSwapGem(Player botPlayer, Player enemyPlayer) {
+        log.info("recommendSwapGem: botPlayer gemType={}", botPlayer.getHeroGemType());
+        List<Hero> botHeroes = botPlayer.getHeroes();
+        for (Hero h : botHeroes) {
+            log.info("Hero: botPlayer id={} name={} attack={} hp/maxHp={}/{} mana/maxMana={}/{} gemType={} playerId={}", h.getId(), h.getName(), h.getAttack(),
+                    h.getHp(), h.getMaxHp(), h.getMana(), h.getMaxMana(), h.getGemTypes(), h.getPlayerId());
+        }
         List<GemSwapInfo> listMatchGem = suggestMatch();
         if (listMatchGem.isEmpty()) {
             return new Pair<>(-1, -1);
         }
-        Optional<GemSwapInfo> matchGemSizeThanFour =
-                listMatchGem.stream().filter(gemMatch -> gemMatch.getSizeMatch() > 4).findFirst();
-        if (matchGemSizeThanFour.isPresent()) {
-            return matchGemSizeThanFour.get().getIndexSwapGem();
+        for (Gem g: specialGem) {
+            log.info("specialGem:  {} {} {} {} {}", g.getIndex(), g.getType(), g.getX(), g.getY(), g.getModifier());
         }
-        Optional<GemSwapInfo> matchGemSizeThanThree =
+        Gem gemSpecial = specialGem.stream().filter(g -> Arrays.asList(GemModifier.values()).contains(g.getModifier())).findFirst().orElse(null);
+        log.info("gemSpecial:  {}", gemSpecial);
+        List<GemSwapInfo> listExtraturn = listMatchGem.stream().filter(g-> gemSpecial != null
+                && (g.getGemModifier() == gemSpecial.getModifier())).collect(Collectors.toList());
+        if (!CollectionUtils.isEmpty(listExtraturn)) {
+            log.info("run special:  {}", listExtraturn.get(0).getIndexSwapGem());
+            return listExtraturn.get(0).getIndexSwapGem();
+        }
+        Optional<GemSwapInfo> match5 =
+                listMatchGem.stream().filter(gemMatch -> gemMatch.getSizeMatch() > 4).findFirst();
+        log.info("match5: {}", match5);
+        if (match5.isPresent()) {
+            return match5.get().getIndexSwapGem();
+        }
+        Optional<GemSwapInfo> match4 =
                 listMatchGem.stream().filter(gemMatch -> gemMatch.getSizeMatch() > 3).findFirst();
-        if (matchGemSizeThanThree.isPresent()) {
-            return matchGemSizeThanThree.get().getIndexSwapGem();
+        if (match4.isPresent()) {
+            return match4.get().getIndexSwapGem();
         }
         Optional<GemSwapInfo> matchGemSword =
                 listMatchGem.stream().filter(gemMatch -> gemMatch.getType() == GemType.SWORD).findFirst();
         if (matchGemSword.isPresent()) {
             return matchGemSword.get().getIndexSwapGem();
         }
-        for (GemType type : myHeroGemType) {
+        for (GemType type : botPlayer.getHeroGemType()) {
             Optional<GemSwapInfo> matchGem =
                     listMatchGem.stream().filter(gemMatch -> gemMatch.getType() == type).findFirst();
             if (matchGem.isPresent()) {
@@ -105,7 +128,7 @@ public class Grid {
         Set<Gem> matchGems = matchesAt(currentGem.getX(), currentGem.getY());
         swap(currentGem, swapGem, gems);
         if (!matchGems.isEmpty()) {
-            listMatchGem.add(new GemSwapInfo(currentGem.getIndex(), swapGem.getIndex(), matchGems.size(), currentGem.getType()));
+            listMatchGem.add(new GemSwapInfo(currentGem.getIndex(), swapGem.getIndex(), matchGems.size(), currentGem.getType(), currentGem.getModifier()));
         }
     }
 

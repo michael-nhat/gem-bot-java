@@ -1,5 +1,6 @@
 package com.gmm.bot.model;
 
+import com.gmm.bot.enumeration.GemModifier;
 import com.gmm.bot.enumeration.GemType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -13,6 +14,7 @@ public class GemSwapInfo {
     private int index2;
     private int sizeMatch;
     private GemType type;
+    private GemModifier gemModifier;
 
     public Pair<Integer> getIndexSwapGem() {
         return new Pair<>(index1, index2);
