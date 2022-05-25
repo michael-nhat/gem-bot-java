@@ -24,6 +24,9 @@ public class Hero {
     private int attack;
     private int hp;
     private int mana;
+    private int dameEatSword;
+    private int dameCastSkill;
+    private int dameThisTurn;
 
     public Hero(ISFSObject objHero) {
         this.playerId = objHero.getInt("playerId");
@@ -56,5 +59,9 @@ public class Hero {
 
     public boolean isHeroSelfSkill() {
         return Arrays.asList(HeroIdEnum.SEA_SPIRIT).contains(id);
+    }
+
+    private void calculatorDameEatSword() {
+
     }
 }

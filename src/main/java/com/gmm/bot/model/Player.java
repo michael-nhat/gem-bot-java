@@ -14,6 +14,7 @@ public class Player {
     private String displayName;
     private List<Hero> heroes;
     private Set<GemType> heroGemType;
+    private boolean firstHero;
 
     public Player(int id, String displayName) {
         this.id = id;
@@ -39,20 +40,32 @@ public class Player {
     }
 
     public Hero dameHeroHighest() {
-        return heroes.stream().max(Comparator.comparingInt(Hero::getAttack)).orElse(null);
+        return herosAlive().stream().max(Comparator.comparingInt(Hero::getAttack)).orElse(null);
     }
 
     public Hero hpHeroHighest() {
         return heroes.stream().max(Comparator.comparingInt(Hero::getHp)).orElse(null);
     }
 
+    public List<Hero> sortedByHPDesc() {
+        return heroes.stream().sorted(Comparator.comparingInt(Hero::getHp)).collect(Collectors.toList());
+    }
+
     public Hero hpHeroLowest() {
-        return heroes.stream().min(Comparator.comparingInt(Hero::getHp)).orElse(null);
+        return herosAlive().stream().min(Comparator.comparingInt(Hero::getHp)).orElse(null);
     }
 
     public Set<GemType> getRecommendGemType() {
         heroGemType.clear();
         heroes.stream().filter(Hero::isAlive).forEach(hero -> heroGemType.addAll(hero.getGemTypes()));
         return heroGemType;
+    }
+
+    public List<Hero> heroesBuff() {
+        return herosAlive().stream().filter(hero -> hero.isFullMana() && hero.isHeroSelfSkill()).collect(Collectors.toList());
+    }
+
+    public List<Hero> heroesAttack() {
+        return herosAlive().stream().filter(hero -> hero.isFullMana() && !hero.isHeroSelfSkill()).collect(Collectors.toList());
     }
 }

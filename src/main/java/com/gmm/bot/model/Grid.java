@@ -1,5 +1,6 @@
 package com.gmm.bot.model;
 
+import com.gmm.bot.ai.ConstantCommand;
 import com.gmm.bot.enumeration.GemModifier;
 import com.gmm.bot.enumeration.GemType;
 import com.smartfoxserver.v2.entities.data.ISFSArray;
@@ -18,7 +19,7 @@ public class Grid {
     private List<Gem> gems = new ArrayList<>();
     private Set<GemType> gemTypes = new HashSet<>();
     private Set<GemType> myHeroGemType;
-    private static Set<Gem> specialGem = new HashSet<>();
+    private Set<Gem> specialGem = new HashSet<>();
 
     public Grid(ISFSArray gemsCode,ISFSArray gemModifiers, Set<GemType> heroGemType) {
         updateGems(gemsCode,gemModifiers);
@@ -34,7 +35,7 @@ public class Grid {
                 Gem gem = new Gem(i, GemType.from(gemsCode.getByte(i)), GemModifier.from(gemModifiers.getByte(i)));
                 gems.add(gem);
                 gemTypes.add(gem.getType());
-                if (!gem.getModifier().equals(GemModifier.NONE)) specialGem.add(gem);
+                if (gem.getModifier() != null && !gem.getModifier().equals(GemModifier.NONE)){ specialGem.add(gem);}
             }
         } else {
             for (int i = 0; i < gemsCode.size(); i++) {
@@ -62,36 +63,40 @@ public class Grid {
             log.info("specialGem:  {} {} {} {} {}", g.getIndex(), g.getType(), g.getX(), g.getY(), g.getModifier());
         }
         Gem gemSpecial = specialGem.stream().filter(g -> Arrays.asList(GemModifier.values()).contains(g.getModifier())).findFirst().orElse(null);
-        log.info("gemSpecial:  {}", gemSpecial);
         List<GemSwapInfo> listExtraturn = listMatchGem.stream().filter(g-> gemSpecial != null
                 && (g.getGemModifier() == gemSpecial.getModifier())).collect(Collectors.toList());
         if (!CollectionUtils.isEmpty(listExtraturn)) {
-            log.info("run special:  {}", listExtraturn.get(0).getIndexSwapGem());
+            log.info("gem special turn from index1={} to index2={} with gemType={} and gemModifier={}",
+                    listExtraturn.get(0).getIndex1(), listExtraturn.get(0).getIndex2(), listExtraturn.get(0).getType(), listExtraturn.get(0).getGemModifier());
             return listExtraturn.get(0).getIndexSwapGem();
         }
         Optional<GemSwapInfo> match5 =
                 listMatchGem.stream().filter(gemMatch -> gemMatch.getSizeMatch() > 4).findFirst();
-        log.info("match5: {}", match5);
         if (match5.isPresent()) {
+            log.info("match5 from index1={} to index2={} with gemType={}", match5.get().getIndex1(), match5.get().getIndex2(), match5.get().getType());
             return match5.get().getIndexSwapGem();
         }
         Optional<GemSwapInfo> match4 =
                 listMatchGem.stream().filter(gemMatch -> gemMatch.getSizeMatch() > 3).findFirst();
         if (match4.isPresent()) {
+            log.info("match4 from index1={} to index2={} with gemType={}", match4.get().getIndex1(), match4.get().getIndex2(), match4.get().getType());
             return match4.get().getIndexSwapGem();
         }
         Optional<GemSwapInfo> matchGemSword =
                 listMatchGem.stream().filter(gemMatch -> gemMatch.getType() == GemType.SWORD).findFirst();
         if (matchGemSword.isPresent()) {
+            log.info("match sword from index1={} to index2={} with gemType={}", matchGemSword.get().getIndex1(), matchGemSword.get().getIndex2(), matchGemSword.get().getType());
             return matchGemSword.get().getIndexSwapGem();
         }
         for (GemType type : botPlayer.getHeroGemType()) {
             Optional<GemSwapInfo> matchGem =
                     listMatchGem.stream().filter(gemMatch -> gemMatch.getType() == type).findFirst();
             if (matchGem.isPresent()) {
+                log.info("match3 from index1={} to index2={} with gemType={}", matchGem.get().getIndex1(), matchGem.get().getIndex2(), matchGem.get().getType());
                 return matchGem.get().getIndexSwapGem();
             }
         }
+        log.info("normal from index1={} to index2={} with gemType={}", listMatchGem.get(0).getIndex1(), listMatchGem.get(0).getIndex2(), listMatchGem.get(0).getType());
         return listMatchGem.get(0).getIndexSwapGem();
     }
 

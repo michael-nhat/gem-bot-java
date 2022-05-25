@@ -1,10 +1,8 @@
 package com.gmm.bot.ai;
 
+import com.gmm.bot.enumeration.GemModifier;
 import com.gmm.bot.enumeration.GemType;
-import com.gmm.bot.model.Grid;
-import com.gmm.bot.model.Hero;
-import com.gmm.bot.model.Pair;
-import com.gmm.bot.model.Player;
+import com.gmm.bot.model.*;
 import com.smartfoxserver.v2.entities.data.ISFSArray;
 import com.smartfoxserver.v2.entities.data.ISFSObject;
 import com.smartfoxserver.v2.entities.data.SFSObject;
@@ -15,11 +13,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import sfs2x.client.entities.Room;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Component
 @Scope("prototype")
@@ -65,11 +63,68 @@ public class GemBot extends BaseBot{
         if (!isBotTurn()) {
             return;
         }
-        List<Hero> herosFullMana = botPlayer.herosFullMana();
+        /*List<Hero> herosFullMana = botPlayer.herosFullMana();
         if (!CollectionUtils.isEmpty(herosFullMana)) {
             taskScheduler.schedule(new SendReQuestSkill(herosFullMana), new Date(System.currentTimeMillis() + delaySwapGem));
             return;
         }
+        taskScheduler.schedule(new SendRequestSwapGem(), new Date(System.currentTimeMillis() + delaySwapGem));*/
+        handleStartTurn();
+    }
+
+    private void handleStartTurn() {
+        handleCastSkill();
+        handleMoveGem();
+    }
+
+    private void handleCastSkill() {
+        //get list heros target
+        List<Hero> heroesTarget = enemyPlayer.herosAlive().stream().sorted(Comparator.comparing(Hero::getHp)).collect(Collectors.toList());
+        for (Hero hero :heroesTarget) {
+            log.info("handleCastSkill: heroesTarget={} {} {} {} {}", hero.getId(), hero.getName(), hero.getAttack(), hero.getHp(), hero.getMana());
+        }
+        String heroTargetId = heroesTarget.get(0).getId().toString();
+        if (!CollectionUtils.isEmpty(heroesTarget)) {
+            heroTargetId = heroesTarget.get(0).getId().toString();
+        }
+
+        List<Hero> heroesBuff = botPlayer.heroesBuff();
+        List<Hero> heroesAttack = botPlayer.heroesAttack();
+
+        GemType gemType = selectGem();
+        String gemIndex = String.valueOf(ThreadLocalRandom.current().nextInt(64));
+
+        if (!CollectionUtils.isEmpty(heroesAttack)) {
+            if (heroesAttack.size() == 1) {
+                castSkill(heroesAttack.get(0).getId().toString(), heroTargetId, gemIndex, gemType.toString());
+            } else {
+                Hero hero = heroesAttack.stream().max(Comparator.comparing(Hero::getAttack)).orElse(null);
+                castSkill(hero.getId().toString(), heroTargetId, gemIndex, gemType.toString());
+            }
+        }
+        if (!CollectionUtils.isEmpty(heroesBuff)) {
+            heroTargetId = botPlayer.dameHeroHighest().getId().toString();
+            if (heroesBuff.size() == 1) {
+                castSkill(heroesBuff.get(0).getId().toString(), heroTargetId, gemIndex, gemType.toString());
+            } else {
+                Hero hero = heroesBuff.stream().min(Comparator.comparing(Hero::getHp)).orElse(null);
+                castSkill(hero.getId().toString(), heroTargetId, gemIndex, gemType.toString());
+            }
+        }
+        log.info("handleCastSkill: finish cast");
+    }
+
+    private void castSkill(String heroCasterId, String heroTargetId, String gemIndex, String gemType) {
+        data.putUtfString("casterId", heroCasterId);
+        data.putUtfString("targetId", heroTargetId);
+        data.putUtfString("selectedGem", gemType);
+        data.putUtfString("gemIndex", gemIndex);
+        data.putBool("isTargetAllyOrNot",false);
+        log.info("castSkill: heroCasterId={} heroTargetId={} gemIndex={} gemType={}", heroCasterId, heroTargetId, gemIndex, gemType);
+        sendExtensionRequest(ConstantCommand.USE_SKILL, data);
+    }
+
+    private void handleMoveGem() {
         taskScheduler.schedule(new SendRequestSwapGem(), new Date(System.currentTimeMillis() + delaySwapGem));
     }
 
@@ -135,60 +190,89 @@ public class GemBot extends BaseBot{
         }
     }
 
-    private class SendReQuestSkill implements Runnable {
-        private final List<Hero> herosCastSkill;
-
-        public SendReQuestSkill(List<Hero> herosCastSkill) {
-            this.herosCastSkill = herosCastSkill;
-        }
-
-        private Hero bestestSkill(List<Hero> herosCastSkill) {
-            List<Hero> selfHeroesSkill = herosCastSkill.stream().filter(Hero::isHeroSelfSkill).collect(Collectors.toList());
-            List<Hero> attackHeroesSkill = herosCastSkill.stream().filter(h -> !h.isHeroSelfSkill()).collect(Collectors.toList());
-            if (CollectionUtils.isEmpty(herosCastSkill)) return null;
-            else if (!CollectionUtils.isEmpty(attackHeroesSkill)) return attackHeroesSkill.get(0);
-            else return selfHeroesSkill.get(0);
-        }
-
-        @Override
-        public void run() {
-            Hero hero = bestestSkill(herosCastSkill);
-            log.info("SendReQuestSkill: hero skill: {}", hero.getName());
-            data.putUtfString("casterId", hero.getId().toString());
-            if (hero.isHeroSelfSkill()) {
-                data.putUtfString("targetId", botPlayer.firstHeroAlive().getId().toString());
-            } else {
-                data.putUtfString("targetId", enemyPlayer.firstHeroAlive().getId().toString());
-            }
-            data.putUtfString("selectedGem", String.valueOf(selectGem().getCode()));
-            data.putUtfString("gemIndex", String.valueOf(ThreadLocalRandom.current().nextInt(64)));
-            data.putBool("isTargetAllyOrNot",false);
-            log("sendExtensionRequest()|room:" + room.getName() + "|extCmd:" + ConstantCommand.USE_SKILL + "|Hero cast skill: " + hero.getName());
-            sendExtensionRequest(ConstantCommand.USE_SKILL, data);
-        }
-
-    }
-
     private class SendRequestSwapGem implements Runnable {
         @Override
         public void run() {
-            Pair<Integer> indexSwap = grid.recommendSwapGem(botPlayer, enemyPlayer);
-            log.info("SendRequestSwapGem: botPlayer={} {} {} {}", botPlayer.getId(), botPlayer.getDisplayName(), botPlayer.getRecommendGemType(), botPlayer.getHeroGemType());
-            List<Hero> botHeroes = botPlayer.getHeroes();
-            for (Hero h : botHeroes) {
-                log.info("Hero: botPlayer id={} name={} attack={} hp/maxHp={}/{} mana/maxMana={}/{} gemType={} playerId={}", h.getId(), h.getName(), h.getAttack(),
-                        h.getHp(), h.getMaxHp(), h.getMana(), h.getMaxMana(), h.getGemTypes(), h.getPlayerId());
-            }
-            log.info("SendRequestSwapGem: enemyPlayer={} name={} {} {}", enemyPlayer.getId(), enemyPlayer.getDisplayName(), enemyPlayer.getRecommendGemType(), enemyPlayer.getHeroGemType());
-            List<Hero> playerHeroes = enemyPlayer.getHeroes();
-            for (Hero h : playerHeroes) {
-                log.info("Hero: enemyPlayer id={} name={} attack={} hp/maxHp={}/{} mana/maxMana={}/{} gemType={} playerId={}", h.getId(), h.getName(), h.getAttack(),
-                        h.getHp(), h.getMaxHp(), h.getMana(), h.getMaxMana(), h.getGemTypes(), h.getPlayerId());
-            }
+            Pair<Integer> indexSwap = swapGemCustomize();
             data.putInt("index1", indexSwap.getParam1());
             data.putInt("index2", indexSwap.getParam2());
-            log("sendExtensionRequest()|room:" + room.getName() + "|extCmd:" + ConstantCommand.SWAP_GEM + "|index1: " + indexSwap.getParam1() + " index2: " + indexSwap.getParam2());
+
             sendExtensionRequest(ConstantCommand.SWAP_GEM, data);
         }
+    }
+
+    private Pair<Integer> swapGemCustomize() {
+        List<GemType> gemTypes = botPlayer.herosAlive().stream()
+                .map(Hero::getGemTypes).flatMap(Collection::stream).distinct().collect(Collectors.toList());
+        log.info("swapGemCustomize: gemType={}", gemTypes);
+        List<GemSwapInfo> listMatchGem = grid.suggestMatch();
+        if (listMatchGem.isEmpty()) {
+            return new Pair<>(-1, -1);
+        }
+        Gem gemSpecial = grid.getSpecialGem().stream().filter(g -> Arrays.asList(GemModifier.values()).contains(g.getModifier())).findFirst().orElse(null);
+        Gem gemExtraTurn = grid.getSpecialGem().stream().filter(g -> g.getModifier() == GemModifier.EXTRA_TURN).findFirst().orElse(null);
+
+        if (gemExtraTurn != null) {
+            List<GemSwapInfo> listExtraturn = listMatchGem.stream().filter(g-> gemSpecial != null
+                    && (g.getGemModifier() == gemExtraTurn.getModifier())).collect(Collectors.toList());
+            if (!CollectionUtils.isEmpty(listExtraturn)) {
+                log.info("gem special turn from index1={} to index2={} with gemType={} and gemModifier={}",
+                        listExtraturn.get(0).getIndex1(), listExtraturn.get(0).getIndex2(), listExtraturn.get(0).getType(), listExtraturn.get(0).getGemModifier());
+                return listExtraturn.get(0).getIndexSwapGem();
+            }
+        }
+        List<GemSwapInfo> listSpecial = listMatchGem.stream().filter(g-> gemSpecial != null
+                && (g.getGemModifier() == gemSpecial.getModifier())).collect(Collectors.toList());
+        if (!CollectionUtils.isEmpty(listSpecial)) {
+            log.info("gem special turn from index1={} to index2={} with gemType={} and gemModifier={}",
+                    listSpecial.get(0).getIndex1(), listSpecial.get(0).getIndex2(), listSpecial.get(0).getType(), listSpecial.get(0).getGemModifier());
+            return listSpecial.get(0).getIndexSwapGem();
+        }
+        List<GemSwapInfo> match5 =
+                listMatchGem.stream().filter(gemMatch -> gemMatch.getSizeMatch() > 4).collect(Collectors.toList());
+        if (!CollectionUtils.isEmpty(match5)) {
+            List<GemSwapInfo> match5CungMau = match5.stream().filter(m -> gemTypes.contains(m.getType())).collect(Collectors.toList());
+            if (!CollectionUtils.isEmpty(match5CungMau)) {
+                log.info("match5 from index1={} to index2={} with gemType={}", match5CungMau.get(0).getIndex1(),
+                        match5CungMau.get(0).getIndex2(), match5CungMau.get(0).getType());
+                return match5CungMau.get(0).getIndexSwapGem();
+            } else {
+                log.info("match5 from index1={} to index2={} with gemType={}", match5.get(0).getIndex1(),
+                        match5.get(0).getIndex2(), match5.get(0).getType());
+                return match5.get(0).getIndexSwapGem();
+            }
+        }
+
+        List<GemSwapInfo> match4 =
+                listMatchGem.stream().filter(gemMatch -> gemMatch.getSizeMatch() > 3).collect(Collectors.toList());
+        if (!CollectionUtils.isEmpty(match4)) {
+            List<GemSwapInfo> match4CungMau = match4.stream().filter(m -> gemTypes.contains(m.getType())).collect(Collectors.toList());
+            if (!CollectionUtils.isEmpty(match4CungMau)) {
+                log.info("match4 from index1={} to index2={} with gemType={}", match4CungMau.get(0).getIndex1(),
+                        match4CungMau.get(0).getIndex2(), match4CungMau.get(0).getType());
+                return match4CungMau.get(0).getIndexSwapGem();
+            }/* else {
+                log.info("match4 from index1={} to index2={} with gemType={}", match4.get(0).getIndex1(),
+                        match4.get(0).getIndex2(), match4.get(0).getType());
+                return match4.get(0).getIndexSwapGem();
+            }*/
+        }
+        Optional<GemSwapInfo> matchGemSword =
+                listMatchGem.stream().filter(gemMatch -> gemMatch.getType() == GemType.SWORD).findFirst();
+        if (matchGemSword.isPresent()) {
+            log.info("match sword from index1={} to index2={} with gemType={}", matchGemSword.get().getIndex1(), matchGemSword.get().getIndex2(), matchGemSword.get().getType());
+            return matchGemSword.get().getIndexSwapGem();
+        }
+
+        for (GemType type : gemTypes) {
+            Optional<GemSwapInfo> matchGem =
+                    listMatchGem.stream().filter(gemMatch -> gemMatch.getType() == type).findFirst();
+            if (matchGem.isPresent()) {
+                log.info("match3 from index1={} to index2={} with gemType={}", matchGem.get().getIndex1(), matchGem.get().getIndex2(), matchGem.get().getType());
+                return matchGem.get().getIndexSwapGem();
+            }
+        }
+        log.info("normal from index1={} to index2={} with gemType={}", listMatchGem.get(0).getIndex1(), listMatchGem.get(0).getIndex2(), listMatchGem.get(0).getType());
+        return listMatchGem.get(0).getIndexSwapGem();
     }
 }

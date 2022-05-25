@@ -78,7 +78,7 @@ public abstract class BaseBot implements IEventListener {
         data = new SFSObject();
         isJoinGameRoom = false;
         disconnect = false;
-        this.token = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJkYWkubmd1eWVudHVhbiIsImF1dGgiOiJST0xFX1VTRVIiLCJMQVNUX0xPR0lOX1RJTUUiOjE2NTI4NzkzNzA2MjIsImV4cCI6MTY1NDY3OTM3MH0.gj66BEBptEhrjQT8xmwF4nxgTwOKiuepqFT4Dl_sDNQcviLeG_Ty191wgHlWGcsTI-WXgxb4xz66Y6Tyej4dNw"
+        this.token = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJkYWkubmd1eWVudHVhbiIsImF1dGgiOiJST0xFX1VTRVIiLCJMQVNUX0xPR0lOX1RJTUUiOjE2NTMwMjkyNzgyNDEsImV4cCI6MTY1NDgyOTI3OH0.88qYYT4yQJSHtymOJZ4XNp3B3ZnrN7gZUmNl6thW-irLmp-_pvGZOUOHDt_DE3MKwKv90Fl_82HoYLAkOIbkFQ"
         ;this.sfsClient.addEventListener(SFSEvent.CONNECTION, this);
         this.sfsClient.addEventListener(SFSEvent.CONNECTION_LOST, this);
         this.sfsClient.addEventListener(SFSEvent.LOGIN, this);
@@ -230,14 +230,27 @@ public abstract class BaseBot implements IEventListener {
 
 
     protected void assignPlayers(Room room) {
-        User user1 = room.getPlayerList().get(0);
-        log("id user1: " + user1.getPlayerId());
+        List<User> users = room.getPlayerList();
+        User user1 = users.get(0);
+        log("id user1: " + user1.getPlayerId() + " name:"+ user1.getName());
+        if(users.size() == 1){
+            if (user1.isItMe()) {
+                botPlayer = new Player(user1.getPlayerId(), "player1");
+                enemyPlayer = new Player(ENEMY_PLAYER_ID, "player2");
+            } else {
+                botPlayer = new Player(BOT_PLAYER_ID, "player2");
+                enemyPlayer = new Player(ENEMY_PLAYER_ID, "player1");
+            }
+            return;
+        }
+        User user2 = users.get(1);
+        log("id user2: " + user2.getPlayerId()+ " name:"+user2.getName());
         if (user1.isItMe()) {
-            botPlayer = new Player(user1.getPlayerId(), "player1");
-            enemyPlayer = new Player(ENEMY_PLAYER_ID, "player2");
+            botPlayer = new Player(user1.getPlayerId(), "player"+user1.getPlayerId());
+            enemyPlayer = new Player(user2.getPlayerId(), "player"+user2.getPlayerId());
         } else {
-            botPlayer = new Player(BOT_PLAYER_ID, "player2");
-            enemyPlayer = new Player(ENEMY_PLAYER_ID, "player1");
+            botPlayer = new Player(user2.getPlayerId(), "player"+user2.getPlayerId());
+            enemyPlayer = new Player(user1.getPlayerId(), "player"+user1.getPlayerId());
         }
     }
 
@@ -256,7 +269,7 @@ public abstract class BaseBot implements IEventListener {
             // Find game after login
             data.putUtfString("type", "");
             data.putUtfString("adventureId", "");
-            sendZoneExtensionRequest(LOBBY_FIND_GAME, data);
+//            sendZoneExtensionRequest(LOBBY_FIND_GAME, data);
         } catch (Exception e) {
             log("onLogin|error => " + e.getMessage());
             e.printStackTrace();
