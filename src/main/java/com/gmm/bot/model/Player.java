@@ -68,4 +68,8 @@ public class Player {
     public List<Hero> heroesAttack() {
         return herosAlive().stream().filter(hero -> hero.isFullMana() && !hero.isHeroSelfSkill()).collect(Collectors.toList());
     }
+
+    public List<Hero> listEnemyHeroAlive() {
+        return heroes;
+    }
 }
