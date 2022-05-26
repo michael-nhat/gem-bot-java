@@ -76,12 +76,12 @@ public abstract class BaseBot implements IEventListener {
     }
 
     private void init() {
-        username = "hiep.ngoxuan";
+        username = "hoang.dohuy";
         sfsClient = new SmartFox();
         data = new SFSObject();
         isJoinGameRoom = false;
         disconnect = false;
-        this.token = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJoaWVwLm5nb3h1YW4iLCJhdXRoIjoiUk9MRV9VU0VSIiwiTEFTVF9MT0dJTl9USU1FIjoxNjUzNTgyNTM5NjAyLCJleHAiOjE2NTUzODI1Mzl9.ZCA5hRudtndLmr0R5qSmX90Pvt0_PJ-Ocxpkpqbl3GJOJGyfFHpBVcpAwPKWC5v79ytitlBlS2ogVgNQj5i1Rw"
+        this.token = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJob2FuZy5kb2h1eSIsImF1dGgiOiJST0xFX1VTRVIiLCJMQVNUX0xPR0lOX1RJTUUiOjE2NTM1ODI1NjgwNzksImV4cCI6MTY1NTM4MjU2OH0.nZXlXAN6ItM8DYwbMdYxbUX1njikqT1a8Yvais-FGzv8mZe1j2sdaxp_M7FTi11WYZpygq4xWZa0aQBUmxkoyg"
         ;this.sfsClient.addEventListener(SFSEvent.CONNECTION, this);
         this.sfsClient.addEventListener(SFSEvent.CONNECTION_LOST, this);
         this.sfsClient.addEventListener(SFSEvent.LOGIN, this);
@@ -173,7 +173,8 @@ public abstract class BaseBot implements IEventListener {
     protected void onRoomJoin(BaseEvent event) {
         logStatus("Join-room", "Joined room " + this.sfsClient.getLastJoinedRoom().getName());
         room = (Room) event.getArguments().get("room");
-        if (room.isGame()) {
+        String roomName = room.getName();
+        if (room.isGame() && (roomName.contains("hiep.ngoxuan") || roomName.contains("hoang.dohuy"))) {
             return;
         }
         data.putUtfString("type", "");

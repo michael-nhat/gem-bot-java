@@ -29,4 +29,21 @@ public enum GemModifier {
         }
         return null;
     }
+
+    public int getPriorityScore() {
+        switch (this) {
+            case EXTRA_TURN:
+                return 20;
+            case EXPLODE_SQUARE:
+            case EXPLODE_VERTICAL:
+            case EXPLODE_HORIZONTAL:
+                return 10;
+            case MANA:
+            case HIT_POINT:
+            case BUFF_ATTACK:
+                return 3;
+            default:
+                return 0;
+        }
+    }
 }

@@ -193,7 +193,9 @@ public class GemBot extends BaseBot{
     private class SendRequestSwapGem implements Runnable {
         @Override
         public void run() {
-            Pair<Integer> indexSwap = swapGemCustomize();
+            grid.setMyHeroGemType(botPlayer.getRecommendGemType());
+            grid.setEnemyHeroGemType(enemyPlayer.getRecommendGemType());
+            Pair<Integer> indexSwap = grid.recommendSwapGemWithDrop();
             data.putInt("index1", indexSwap.getParam1());
             data.putInt("index2", indexSwap.getParam2());
 

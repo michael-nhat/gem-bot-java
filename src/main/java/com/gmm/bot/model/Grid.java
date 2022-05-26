@@ -23,6 +23,7 @@ public class Grid {
     private Set<GemType> myHeroGemType;
     private Set<Gem> specialGem = new HashSet<>();
     private Player player;
+    private Set<GemType> enemyHeroGemType;
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -320,5 +321,225 @@ public class Grid {
             System.out.println();
         }
         System.out.println();
+    }
+
+    public Pair<Integer> recommendSwapGemWithDrop() {
+        List<GemSwapOptimizedInfo> listMatchGem = suggestMatchWithDrop();
+        if (listMatchGem.isEmpty()) {
+            return new Pair<>(-1, -1);
+        }
+        System.out.println("My hero gem type: " + myHeroGemType.toString());
+        System.out.println("Enemy hero gem type: " + enemyHeroGemType.toString());
+        GemSwapOptimizedInfo gemSwapInfoPriorityMax = listMatchGem.get(0);
+        for (GemSwapOptimizedInfo swapGemInfo : listMatchGem) {
+            if (gemSwapInfoPriorityMax.getPriorityScore(myHeroGemType, enemyHeroGemType) < swapGemInfo.getPriorityScore(myHeroGemType, enemyHeroGemType)) {
+                gemSwapInfoPriorityMax = swapGemInfo;
+            }
+        }
+        System.out.println("Swap gem index1: " + gemSwapInfoPriorityMax.getIndex1() + ", index2: " + gemSwapInfoPriorityMax.getIndex2());
+        System.out.println(gemSwapInfoPriorityMax.getPriorityScore(myHeroGemType, enemyHeroGemType));
+        for (MatchingGemInfo matchingGemInfo : gemSwapInfoPriorityMax.getMatchingGemInfoList()) {
+            System.out.println("Size match: " + matchingGemInfo.getSizeMatch() + " | Gem type: " + matchingGemInfo.getType());
+        }
+        return gemSwapInfoPriorityMax.getIndexSwapGem();
+    }
+
+    public List<GemSwapOptimizedInfo> suggestMatchWithDrop() {
+        List<GemSwapOptimizedInfo> listMatchGem = new ArrayList<>();
+        for (Gem currentGem : gems) {
+            Gem swapGem = null;
+            // If x < 7 => swap right & check
+            if (currentGem.getX() < 7) {
+                swapGem = gems.get(getGemIndexAt(currentGem.getX() + 1, currentGem.getY()));
+                if (!currentGem.sameType(swapGem)) {
+                    checkMatchSwapGemWithDrop(listMatchGem, currentGem, swapGem);
+                }
+            }
+            // If y < 7 => swap up & check
+            if (currentGem.getY() < 7) {
+                swapGem = gems.get(getGemIndexAt(currentGem.getX(), currentGem.getY() + 1));
+                if (!currentGem.sameType(swapGem)) {
+                    checkMatchSwapGemWithDrop(listMatchGem, currentGem, swapGem);
+                }
+            }
+        }
+        return listMatchGem;
+    }
+
+    private void checkMatchSwapGemWithDrop(List<GemSwapOptimizedInfo> listMatchGem, Gem currentGem, Gem swapGem) {
+        List<MatchingGemInfo> matchingGemInfoList = new ArrayList<>();
+        GemSwapOptimizedInfo newGemSwapInfo = new GemSwapOptimizedInfo(currentGem.getIndex(), swapGem.getIndex(), matchingGemInfoList);
+        swap(currentGem, swapGem, gems);
+        Set<Gem> matchGems = matchesAt(currentGem.getX(), currentGem.getY());
+        Set<Gem> matchGemsAtSwap = matchesAt(swapGem.getX(), swapGem.getY());
+        swap(currentGem, swapGem, gems);
+        if (!matchGems.isEmpty()) {
+            List<GemModifier> gemModifierList = new ArrayList<>();
+            for (Gem gem : matchGems) {
+                if (gem.getModifier() != GemModifier.NONE) {
+                    gemModifierList.add(gem.getModifier());
+                }
+            }
+            MatchingGemInfo newMatchingGemInfo = new MatchingGemInfo(matchGems.size(), currentGem.getType(), gemModifierList);
+            matchingGemInfoList.add(newMatchingGemInfo);
+            Set<Set<Gem>> dropMatchGem = renewGridAndCheckMatchingGem(matchGems);
+            if (!dropMatchGem.isEmpty()) {
+                System.out.println("Found drop gem match!");
+                for (Set<Gem> dropMatch : dropMatchGem) {
+                    List<GemModifier> modifierList = new ArrayList<>();
+                    GemType dropGemType = null;
+                    for (Gem gem : dropMatch) {
+                        dropGemType = gem.getType();
+                        if (gem.getModifier() != GemModifier.NONE) {
+                            modifierList.add(gem.getModifier());
+                        }
+                    }
+                    MatchingGemInfo dropMatchingGemInfo = new MatchingGemInfo(dropMatch.size(), dropGemType, modifierList);
+                    matchingGemInfoList.add(dropMatchingGemInfo);
+                }
+            }
+        }
+        if (!matchGemsAtSwap.isEmpty()) {
+            List<GemModifier> gemModifierList = new ArrayList<>();
+            for (Gem gem : matchGemsAtSwap) {
+                if (gem.getModifier() != GemModifier.NONE) {
+                    gemModifierList.add(gem.getModifier());
+                }
+            }
+            MatchingGemInfo newMatchingGemInfo = new MatchingGemInfo(matchGemsAtSwap.size(), swapGem.getType(), gemModifierList);
+            matchingGemInfoList.add(newMatchingGemInfo);
+            Set<Set<Gem>> dropMatchGem = renewGridAndCheckMatchingGem(matchGemsAtSwap);
+            if (!dropMatchGem.isEmpty()) {
+                System.out.println("Found drop gem match!");
+                for (Set<Gem> dropMatch : dropMatchGem) {
+                    List<GemModifier> modifierList = new ArrayList<>();
+                    GemType dropGemType = null;
+                    for (Gem gem : dropMatch) {
+                        dropGemType = gem.getType();
+                        if (gem.getModifier() != GemModifier.NONE) {
+                            modifierList.add(gem.getModifier());
+                        }
+                    }
+                    MatchingGemInfo dropMatchingGemInfo = new MatchingGemInfo(dropMatch.size(), dropGemType, modifierList);
+                    matchingGemInfoList.add(dropMatchingGemInfo);
+                }
+            }
+        }
+        if (!matchingGemInfoList.isEmpty()) {
+            listMatchGem.add(newGemSwapInfo);
+        }
+    }
+
+    private Set<Set<Gem>> renewGridAndCheckMatchingGem(Set<Gem> matchGem) {
+        List<Gem> gemsClone = new ArrayList<>();
+        for (Gem gem : gems) {
+            if (!matchGem.contains(gem)) {
+                gemsClone.add(new Gem(gem.getIndex(), gem.getType(), gem.getModifier()));
+            }
+        }
+        //make gem drop
+        boolean drop;
+        do {
+            drop = false;
+            for (Gem gem : gemsClone) {
+                if (gem.getType() != GemType.EMPTY) {
+                    int x = gem.getX();
+                    int y = gem.getY();
+                    if (y > 0) {
+                        Gem gemDown = gemAt(x, y-1, gemsClone);
+                        if (gemDown == null) {
+                            gem.setY(y-1);
+                            drop = true;
+                        }
+                    }
+                }
+            }
+        } while (drop);
+        //check all matching for all gem after drop
+        Set<Set<Gem>> result = new HashSet<>();
+        for (Gem gem : gemsClone) {
+            if (gem.getType() != GemType.EMPTY) {
+                int x = gem.getX();
+                int y = gem.getY();
+                Set<Gem> dropMatch = matchesAt(x, y, gemsClone);
+                if (dropMatch.size() >= 3) {
+                    dropMatch = dropMatch.stream().sorted(Comparator.comparing(Gem::getIndex)).collect(Collectors.toCollection(LinkedHashSet::new));
+                    result.add(dropMatch);
+                }
+            }
+        }
+        return result;
+    }
+
+
+    private Gem gemAt(int x, int y, List<Gem> gemList) {
+        for (Gem g : gemList) {
+            if (g != null && g.getX() == x && g.getY() == y) {
+                return g;
+            }
+        }
+        return null;
+    }
+
+    private Set<Gem> matchesAt(int x, int y, List<Gem> gemList) {
+        Set<Gem> res = new HashSet<>();
+        Gem center = gemAt(x, y, gemList);
+        if (center == null) {
+            return res;
+        }
+
+        // check horizontally
+        List<Gem> hor = new ArrayList<>();
+        hor.add(center);
+        int xLeft = x - 1, xRight = x + 1;
+        while (xLeft >= 0) {
+            Gem gemLeft = gemAt(xLeft, y, gemList);
+            if (gemLeft != null) {
+                if (!gemLeft.sameType(center)) {
+                    break;
+                }
+                hor.add(gemLeft);
+            }
+            xLeft--;
+        }
+        while (xRight < 8) {
+            Gem gemRight = gemAt(xRight, y, gemList);
+            if (gemRight != null) {
+                if (!gemRight.sameType(center)) {
+                    break;
+                }
+                hor.add(gemRight);
+            }
+            xRight++;
+        }
+        if (hor.size() >= 3) res.addAll(hor);
+
+        // check vertically
+        List<Gem> ver = new ArrayList<>();
+        ver.add(center);
+        int yBelow = y - 1, yAbove = y + 1;
+        while (yBelow >= 0) {
+            Gem gemBelow = gemAt(x, yBelow, gemList);
+            if (gemBelow != null) {
+                if (!gemBelow.sameType(center)) {
+                    break;
+                }
+                ver.add(gemBelow);
+            }
+            yBelow--;
+        }
+        while (yAbove < 8) {
+            Gem gemAbove = gemAt(x, yAbove, gemList);
+            if (gemAbove != null) {
+                if (!gemAbove.sameType(center)) {
+                    break;
+                }
+                ver.add(gemAbove);
+            }
+            yAbove++;
+        }
+        if (ver.size() >= 3) res.addAll(ver);
+
+        return res;
     }
 }
