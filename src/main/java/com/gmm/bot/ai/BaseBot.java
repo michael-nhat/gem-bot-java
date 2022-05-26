@@ -13,7 +13,9 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.web.client.RestTemplate;
 import sfs2x.client.SmartFox;
 import sfs2x.client.core.BaseEvent;
 import sfs2x.client.core.IEventListener;
@@ -58,6 +60,7 @@ public abstract class BaseBot implements IEventListener {
     protected Grid grid;
     protected volatile boolean isJoinGameRoom;
     protected String username;
+    protected String password;
     protected String token;
     protected SFSObject data;
     protected boolean disconnect;
@@ -73,12 +76,12 @@ public abstract class BaseBot implements IEventListener {
     }
 
     private void init() {
-        username = "dai.nguyentuan";
+        username = "hiep.ngoxuan";
         sfsClient = new SmartFox();
         data = new SFSObject();
         isJoinGameRoom = false;
         disconnect = false;
-        this.token = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJkYWkubmd1eWVudHVhbiIsImF1dGgiOiJST0xFX1VTRVIiLCJMQVNUX0xPR0lOX1RJTUUiOjE2NTMwMjkyNzgyNDEsImV4cCI6MTY1NDgyOTI3OH0.88qYYT4yQJSHtymOJZ4XNp3B3ZnrN7gZUmNl6thW-irLmp-_pvGZOUOHDt_DE3MKwKv90Fl_82HoYLAkOIbkFQ"
+        this.token = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJoaWVwLm5nb3h1YW4iLCJhdXRoIjoiUk9MRV9VU0VSIiwiTEFTVF9MT0dJTl9USU1FIjoxNjUzNTgyNTM5NjAyLCJleHAiOjE2NTUzODI1Mzl9.ZCA5hRudtndLmr0R5qSmX90Pvt0_PJ-Ocxpkpqbl3GJOJGyfFHpBVcpAwPKWC5v79ytitlBlS2ogVgNQj5i1Rw"
         ;this.sfsClient.addEventListener(SFSEvent.CONNECTION, this);
         this.sfsClient.addEventListener(SFSEvent.CONNECTION_LOST, this);
         this.sfsClient.addEventListener(SFSEvent.LOGIN, this);

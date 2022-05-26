@@ -7,6 +7,8 @@ import com.smartfoxserver.v2.entities.data.ISFSArray;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
 
 import java.util.*;
@@ -20,6 +22,9 @@ public class Grid {
     private Set<GemType> gemTypes = new HashSet<>();
     private Set<GemType> myHeroGemType;
     private Set<Gem> specialGem = new HashSet<>();
+    private Player player;
+
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     public Grid(ISFSArray gemsCode,ISFSArray gemModifiers, Set<GemType> heroGemType) {
         updateGems(gemsCode,gemModifiers);
@@ -33,9 +38,11 @@ public class Grid {
         if(gemModifiers != null){
             for (int i = 0; i < gemsCode.size(); i++) {
                 Gem gem = new Gem(i, GemType.from(gemsCode.getByte(i)), GemModifier.from(gemModifiers.getByte(i)));
+                if (gem.getModifier() != null && gem.getModifier() != GemModifier.NONE) {
+                    specialGem.add(gem);
+                }
                 gems.add(gem);
                 gemTypes.add(gem.getType());
-                if (gem.getModifier() != null && !gem.getModifier().equals(GemModifier.NONE)){ specialGem.add(gem);}
             }
         } else {
             for (int i = 0; i < gemsCode.size(); i++) {
@@ -58,6 +65,77 @@ public class Grid {
         List<GemSwapInfo> listMatchGem = suggestMatch();
         if (listMatchGem.isEmpty()) {
             return new Pair<>(-1, -1);
+        }
+        List<Hero> heroes = player.getHeroes();
+
+        List<GemType> prioritizeGem = new ArrayList<>(Arrays.asList(GemType.YELLOW, GemType.GREEN, GemType.BLUE, GemType.EMPTY, GemType.RED, GemType.PURPLE));
+
+        Collections.shuffle(prioritizeGem);
+        for (Hero hero : heroes) {
+            if ((hero.isAlive() && hero.isFullMana()) || !hero.isAlive()) {
+                logger.info("prioritizeGem: {}", prioritizeGem);
+                logger.info("hero.getGemTypes(): {}", hero.getGemTypes());
+                prioritizeGem.removeAll(hero.getGemTypes());
+            }
+        }
+
+        List<GemSwapInfo> matchGemSizeThanFive =
+                listMatchGem.stream().filter(gemMatch -> {
+                    if (gemMatch.getSizeMatch() >= 5 &&  (prioritizeGem.contains(gemMatch.getType())
+                            || myHeroGemType.contains(gemMatch.getType()))) {
+                        return true;
+                    } else return gemMatch.getSizeMatch() >= 5;
+                }).collect(Collectors.toList());
+
+        List<GemType> matchGemTypeSizeThanFive = matchGemSizeThanFive.stream().map(GemSwapInfo::getType).collect(Collectors.toList());
+
+        List<GemType> gemTypeList = specialGem.stream().map(Gem::getType).collect(Collectors.toList());
+        logger.info("gemTypeList: {}", gemTypeList);
+        List<GemModifier> gemModifierList = Arrays.asList(GemModifier.values());
+        GemSwapInfo gemSwapInfoExtraTurn = matchGemSizeThanFive
+                .stream()
+                .filter(matchGemSizeThanFour -> gemModifierList.contains(matchGemSizeThanFour.getGemModifier()))
+                .findFirst()
+                .orElse(null);
+
+        logger.info("special gem: {}, name: {}", gemSwapInfoExtraTurn, gemSwapInfoExtraTurn == null
+                ? null : gemSwapInfoExtraTurn.getGemModifier().getCode());
+
+        List<GemSwapInfo> gemSwapInfoSpecial = matchGemSizeThanFive
+                .stream()
+                .filter(matchGemSizeThanFour -> gemTypeList.contains(matchGemSizeThanFour.getType()))
+                .collect(Collectors.toList());
+
+        if (!CollectionUtils.isEmpty(matchGemSizeThanFive)) {
+            if ((gemSwapInfoExtraTurn != null && matchGemTypeSizeThanFive.contains(gemSwapInfoExtraTurn.getType()))
+                    || !CollectionUtils.isEmpty(gemSwapInfoSpecial)) {
+                logger.info("DO_SPECIAL_SWAP");
+                return matchGemSizeThanFive.get(0).getIndexSwapGem();
+            }
+            return matchGemSizeThanFive.get(0).getIndexSwapGem();
+        }
+        logger.info("DO_SWAP");
+        myHeroGemType = myHeroGemType.stream().filter(heroGemType -> {
+            Hero hero = heroes.stream().filter(hero1 -> hero1.getGemTypes().contains(heroGemType)).findFirst().orElse(null);
+            return hero != null;
+        }).collect(Collectors.toSet());
+        List<GemSwapInfo> matchGemSizeThanThree =
+                listMatchGem.stream().filter(gemMatch -> {
+                    if (gemMatch.getSizeMatch() >= 3 && (prioritizeGem.contains(gemMatch.getType())
+                            || myHeroGemType.contains(gemMatch.getType())) ) {
+                        return true;
+                    } else return gemMatch.getSizeMatch() >= 3;
+                }).collect(Collectors.toList());
+
+        List<GemType> matchGemTypeSizeThanThree = matchGemSizeThanThree.stream().map(GemSwapInfo::getType).collect(Collectors.toList());
+
+        if (!CollectionUtils.isEmpty(matchGemSizeThanThree)) {
+            if ((gemSwapInfoExtraTurn != null && matchGemTypeSizeThanThree.contains(gemSwapInfoExtraTurn.getType()))
+                    || !CollectionUtils.isEmpty(gemSwapInfoSpecial)) {
+                logger.info("DO_SPECIAL_SWAP");
+                return matchGemSizeThanThree.get(0).getIndexSwapGem();
+            }
+            return matchGemSizeThanThree.get(0).getIndexSwapGem();
         }
         for (Gem g: specialGem) {
             log.info("specialGem:  {} {} {} {} {}", g.getIndex(), g.getType(), g.getX(), g.getY(), g.getModifier());
