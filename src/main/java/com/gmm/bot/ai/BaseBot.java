@@ -26,6 +26,7 @@ import sfs2x.client.util.ConfigData;
 import java.util.Date;
 import java.util.List;
 
+import static com.gmm.bot.ai.ConstantCommand.LEAVE_ROOM;
 import static com.gmm.bot.ai.ConstantCommand.LOBBY_FIND_GAME;
 
 @Slf4j
@@ -69,7 +70,8 @@ public abstract class BaseBot implements IEventListener {
     }
 
     private void init() {
-        username = "hiep.ngoxuan";
+        username = "nhat.hoangvan";
+//        username = "ha.luongthanh";
         password = "123456";
         sfsClient = new SmartFox();
         data = new SFSObject();
@@ -116,7 +118,7 @@ public abstract class BaseBot implements IEventListener {
 
     public void dispatch(BaseEvent event) {
         String eventType = event.getType();
-
+        log.info("repond", eventType);
         switch (eventType) {
             case SFSEvent.CONNECTION:
                 this.onConnection(event);
@@ -168,13 +170,17 @@ public abstract class BaseBot implements IEventListener {
         logStatus("Join-room", "Joined room " + this.sfsClient.getLastJoinedRoom().getName());
         room = (Room) event.getArguments().get("room");
         String roomName = room.getName();
-        if (room.isGame() && (roomName.contains("hiep.ngoxuan") || roomName.contains("hoang.dohuy"))) {
+        if (room.isGame() && (roomName.contains("nhat.hoangvan") || roomName.contains("ha.luongthanh"))) {
             return;
         }
-        data.putUtfString("type", "");
-        data.putUtfString("adventureId", "");
-        sendZoneExtensionRequest(LOBBY_FIND_GAME, data);
-        log("Send request Find game from lobby");
+        else {
+            sendZoneExtensionRequest(LEAVE_ROOM, data);
+            log("leave room, when other join me");
+        }
+//        data.putUtfString("type", "");
+//        data.putUtfString("adventureId", "");
+//        sendZoneExtensionRequest(LOBBY_FIND_GAME, data);
+//        log("Send request Find game from lobby");
         //taskScheduler.schedule(new FindRoomGame(), new Date(System.currentTimeMillis() + delayFindGame));
     }
 
@@ -208,6 +214,8 @@ public abstract class BaseBot implements IEventListener {
                 handleGems(params);
                 break;
             case ConstantCommand.PLAYER_JOINED_GAME:
+                sendZoneExtensionRequest(LEAVE_ROOM, data);
+                log("leave room, when join");
                 sendExtensionRequest(ConstantCommand.I_AM_READY, new SFSObject());
                 break;
         }
