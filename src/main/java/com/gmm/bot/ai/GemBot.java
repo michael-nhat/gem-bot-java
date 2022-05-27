@@ -2,12 +2,15 @@ package com.gmm.bot.ai;
 
 import com.gmm.bot.enumeration.GemModifier;
 import com.gmm.bot.enumeration.GemType;
+import com.gmm.bot.enumeration.HeroIdEnum;
 import com.gmm.bot.model.*;
 import com.smartfoxserver.v2.entities.data.ISFSArray;
 import com.smartfoxserver.v2.entities.data.ISFSObject;
 import com.smartfoxserver.v2.entities.data.SFSObject;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -24,7 +27,7 @@ import java.util.stream.Stream;
 @Slf4j
 @Getter
 public class GemBot extends BaseBot{
-
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     @Override
     protected void swapGem(SFSObject params) {
         boolean isValidSwap = params.getBool("validSwap");
@@ -94,24 +97,51 @@ public class GemBot extends BaseBot{
         GemType gemType = selectGem();
         String gemIndex = String.valueOf(ThreadLocalRandom.current().nextInt(64));
 
-        if (!CollectionUtils.isEmpty(heroesAttack)) {
-            if (heroesAttack.size() == 1) {
-                castSkill(heroesAttack.get(0).getId().toString(), heroTargetId, gemIndex, gemType.toString());
-            } else {
-                Hero hero = heroesAttack.stream().max(Comparator.comparing(Hero::getAttack)).orElse(null);
-                castSkill(hero.getId().toString(), heroTargetId, gemIndex, gemType.toString());
-            }
-        }
         if (!CollectionUtils.isEmpty(heroesBuff)) {
             heroTargetId = botPlayer.dameHeroHighest().getId().toString();
             if (heroesBuff.size() == 1) {
                 castSkill(heroesBuff.get(0).getId().toString(), heroTargetId, gemIndex, gemType.toString());
             } else {
-                Hero hero = heroesBuff.stream().min(Comparator.comparing(Hero::getHp)).orElse(null);
+                Hero hero = heroesBuff.stream().min(Comparator.comparing(Hero::getHp)).orElse(heroesBuff.get(0));
                 castSkill(hero.getId().toString(), heroTargetId, gemIndex, gemType.toString());
             }
         }
+
+        if (!CollectionUtils.isEmpty(heroesAttack)) {
+            String heroId;
+            if (heroesAttack.size() == 1) {
+                if (heroesAttack.get(0).getId().equals(HeroIdEnum.FIRE_SPIRIT)) {
+                    heroTargetId = getTargetHero().getId().toString();
+                }
+                heroId = heroesAttack.get(0).getId().toString();
+            } else {
+                Hero hero = heroesAttack.stream().max(Comparator.comparing(Hero::getAttack)).orElse(heroesAttack.get(0));
+                heroId = hero.getId().toString();
+            }
+            castSkill(heroId, heroTargetId, gemIndex, gemType.toString());
+        }
         log.info("handleCastSkill: finish cast");
+    }
+
+    private Hero getTargetHero() {
+        List<Hero> heroList = enemyPlayer.listEnemyHeroAlive().stream().filter(Hero::isAlive).collect(Collectors.toList());
+        Hero heroWithMinHp = heroList.get(0);
+        List<Gem> redGem = grid.getGems().stream().filter(gem -> GemType.RED.equals(gem.getType())).collect(Collectors.toList());
+        int numberOfRedGems = 0;
+        if (!CollectionUtils.isEmpty(redGem)) {
+            numberOfRedGems = redGem.size();
+        }
+        for (Hero hero : heroList) {
+            logger.info("hero.getAttack() + numberOfRedGems >= heroWithMinHp.getHp(): {} ", hero.getAttack() + numberOfRedGems >= heroWithMinHp.getHp());
+            logger.info("heroWithMinHp.getHp() > hero.getHp(): {} ", heroWithMinHp.getHp() > hero.getHp());
+
+            if ((numberOfRedGems + hero.getAttack() >= hero.getHp())
+                    || heroWithMinHp.getHp() > hero.getHp()) {
+                heroWithMinHp = hero;
+            }
+        }
+        logger.info("getTargetHero: {} ", heroWithMinHp);
+        return heroWithMinHp;
     }
 
     private void castSkill(String heroCasterId, String heroTargetId, String gemIndex, String gemType) {
