@@ -1,6 +1,5 @@
 package com.gmm.bot.model;
 
-import com.gmm.bot.ai.ConstantCommand;
 import com.gmm.bot.enumeration.GemModifier;
 import com.gmm.bot.enumeration.GemType;
 import com.smartfoxserver.v2.entities.data.ISFSArray;
@@ -11,7 +10,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -54,7 +61,6 @@ public class Grid {
         }
 
     }
-
 
     public Pair<Integer> recommendSwapGem(Player botPlayer, Player enemyPlayer) {
         log.info("recommendSwapGem: botPlayer gemType={}", botPlayer.getHeroGemType());
