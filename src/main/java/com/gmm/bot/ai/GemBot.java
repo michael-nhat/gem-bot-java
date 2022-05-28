@@ -71,6 +71,7 @@ public class GemBot extends BaseBot{
 
     private void handleStartTurn() {
         checkMatch5();
+        checkGemMatch3And4HasExtraTurn();
         handleCastSkill();
         handleMoveGem();
     }
@@ -86,6 +87,20 @@ public class GemBot extends BaseBot{
                 }).findFirst().orElse(null);
         if (matchGemSizeThanFive != null) {
             Pair<Integer> indexSwap = matchGemSizeThanFive.getIndexSwapGem();
+            data.putInt("index1", indexSwap.getParam1());
+            data.putInt("index2", indexSwap.getParam2());
+            log.info("cast");
+            sendExtensionRequest(ConstantCommand.SWAP_GEM, data);
+        }
+    }
+    private void checkGemMatch3And4HasExtraTurn() {
+        List<GemSwapInfo> listMatchGem = grid.suggestMatch();
+        GemSwapInfo matchGem3And4HasExtraTurn =
+                listMatchGem.stream().filter(gemMatch ->
+                     (gemMatch.getSizeMatch() >= 3 && gemMatch.getGemModifier().equals(GemModifier.EXTRA_TURN))
+                ).findFirst().orElse(null);
+        if (matchGem3And4HasExtraTurn != null) {
+            Pair<Integer> indexSwap = matchGem3And4HasExtraTurn.getIndexSwapGem();
             data.putInt("index1", indexSwap.getParam1());
             data.putInt("index2", indexSwap.getParam2());
             log.info("cast");
