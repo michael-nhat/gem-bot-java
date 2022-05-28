@@ -173,16 +173,40 @@ public class GemBot extends BaseBot{
         if (!CollectionUtils.isEmpty(redGem)) {
             numberOfRedGems = redGem.size();
         }
-        for (Hero hero : heroList) {
-            logger.info("hero.getAttack() + numberOfRedGems >= heroWithMinHp.getHp(): {} ", hero.getAttack() + numberOfRedGems >= heroWithMinHp.getHp());
-            logger.info("heroWithMinHp.getHp() > hero.getHp(): {} ", heroWithMinHp.getHp() > hero.getHp());
-
-            if ((numberOfRedGems + hero.getAttack() >= hero.getHp())
-                    || heroWithMinHp.getHp() > hero.getHp()) {
+        List<Hero> heroesbuff = enemyPlayer.heroesBuff().stream().sorted(Comparator.comparing(Hero::getHp)).collect(Collectors.toList());
+        List<Hero> heroesAttack = enemyPlayer.heroesAttack().stream().sorted(Comparator.comparing(Hero::getAttack)).collect(Collectors.toList());
+        if (!CollectionUtils.isEmpty(heroesAttack)) {
+            for (Hero hero : heroesAttack) {
+                if ((numberOfRedGems + hero.getAttack() >= hero.getHp())) {
+                    heroWithMinHp = hero;
+                }
+            }
+            logger.info("Case hero attack with max dame heroWithMinHp: {} ", heroWithMinHp.getId());
+            return heroWithMinHp;
+        }
+        if (!CollectionUtils.isEmpty(heroesbuff)) {
+            for (Hero hero : heroesbuff) {
+                if ((numberOfRedGems + hero.getAttack() >= hero.getHp())) {
+                    heroWithMinHp = hero;
+                }
+            }
+            logger.info("Case hero buff with max hp heroWithMinHp: {} ", heroWithMinHp.getId());
+            return heroWithMinHp;
+        }
+        List<Hero> heroListCaseNotSkill = heroList.stream().sorted(Comparator.comparing(Hero::getAttack)).collect(Collectors.toList());
+        boolean die = false;
+        for (Hero hero : heroListCaseNotSkill) {
+            if ((numberOfRedGems + hero.getAttack() >= hero.getHp())) {
                 heroWithMinHp = hero;
+                die = true;
             }
         }
-        logger.info("getTargetHero: {} ", heroWithMinHp);
+        if (die) {
+            logger.info("Case hero not full mana with max attack heroWithMinHp: {} ", heroWithMinHp.getId());
+            return heroWithMinHp;
+        }
+        heroWithMinHp = heroList.stream().max(Comparator.comparing(Hero::getAttack)).get();
+        logger.info("Case hero not full mana with max attack not die heroWithMinHp: {} ", heroWithMinHp.getId());
         return heroWithMinHp;
     }
 
