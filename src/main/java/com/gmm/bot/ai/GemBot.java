@@ -66,18 +66,31 @@ public class GemBot extends BaseBot{
         if (!isBotTurn()) {
             return;
         }
-        /*List<Hero> herosFullMana = botPlayer.herosFullMana();
-        if (!CollectionUtils.isEmpty(herosFullMana)) {
-            taskScheduler.schedule(new SendReQuestSkill(herosFullMana), new Date(System.currentTimeMillis() + delaySwapGem));
-            return;
-        }
-        taskScheduler.schedule(new SendRequestSwapGem(), new Date(System.currentTimeMillis() + delaySwapGem));*/
         handleStartTurn();
     }
 
     private void handleStartTurn() {
+        checkMatch5();
         handleCastSkill();
         handleMoveGem();
+    }
+    private void checkMatch5() {
+        List<GemSwapInfo> listMatchGem = grid.suggestMatch();
+        GemSwapInfo matchGemSizeThanFive =
+                listMatchGem.stream().filter(gemMatch -> {
+                    if (gemMatch.getSizeMatch() >= 5 &&  (grid.getMyHeroGemType().contains(gemMatch.getType())
+                            || (((gemMatch.getGemModifier() != null && gemMatch.getGemModifier().equals(GemModifier.EXTRA_TURN)))
+                            || (gemMatch.getGemModifier() != null)))) {
+                        return true;
+                    } else return gemMatch.getSizeMatch() >= 5;
+                }).findFirst().orElse(null);
+        if (matchGemSizeThanFive != null) {
+            Pair<Integer> indexSwap = matchGemSizeThanFive.getIndexSwapGem();
+            data.putInt("index1", indexSwap.getParam1());
+            data.putInt("index2", indexSwap.getParam2());
+            log.info("cast");
+            sendExtensionRequest(ConstantCommand.SWAP_GEM, data);
+        }
     }
 
     private void handleCastSkill() {
@@ -93,13 +106,18 @@ public class GemBot extends BaseBot{
 
         List<Hero> heroesBuff = botPlayer.heroesBuff();
         List<Hero> heroesAttack = botPlayer.heroesAttack();
+        Hero ceberus = heroesAttack.stream().filter(h -> h.getId().equals(HeroIdEnum.CERBERUS)).findFirst().orElse(null);
+        Boolean checkFireSpirit = true;
+        if (ceberus!=null) {
+            checkFireSpirit = checkHero(ceberus, heroesTarget);
+        }
 
         GemType gemType = selectGem();
         String gemIndex = String.valueOf(ThreadLocalRandom.current().nextInt(64));
 
         if (!CollectionUtils.isEmpty(heroesBuff)) {
             heroTargetId = botPlayer.dameHeroHighest().getId().toString();
-            if (heroesBuff.size() == 1) {
+            if (heroesBuff.size() == 1 && !checkFireSpirit) {
                 castSkill(heroesBuff.get(0).getId().toString(), heroTargetId, gemIndex, gemType.toString());
             } else {
                 Hero hero = heroesBuff.stream().min(Comparator.comparing(Hero::getHp)).orElse(heroesBuff.get(0));
@@ -121,6 +139,15 @@ public class GemBot extends BaseBot{
             castSkill(heroId, heroTargetId, gemIndex, gemType.toString());
         }
         log.info("handleCastSkill: finish cast");
+    }
+
+    private Boolean checkHero(Hero ceberus, List<Hero> heroesTarget) {
+        Hero hero = heroesTarget.stream().filter(h -> h.isFullMana() && h.getId().equals(HeroIdEnum.FIRE_SPIRIT)).findFirst().orElse(null);
+        if (hero == null) {
+            return true;
+        }
+        int dameCeberus = ceberus.getAttack() + 7;
+        return  (hero.getHp() <= dameCeberus);
     }
 
     private Hero getTargetHero() {

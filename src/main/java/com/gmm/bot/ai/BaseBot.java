@@ -168,7 +168,7 @@ public abstract class BaseBot implements IEventListener {
         logStatus("Join-room", "Joined room " + this.sfsClient.getLastJoinedRoom().getName());
         room = (Room) event.getArguments().get("room");
         String roomName = room.getName();
-        if (room.isGame() && (roomName.contains("hiep.ngoxuan") || roomName.contains("hoang.dohuy"))) {
+        if (room.isGame() ) {
             return;
         }
         data.putUtfString("type", "");

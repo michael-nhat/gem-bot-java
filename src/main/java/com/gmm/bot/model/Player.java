@@ -1,6 +1,7 @@
 package com.gmm.bot.model;
 
 import com.gmm.bot.enumeration.GemType;
+import com.gmm.bot.enumeration.HeroIdEnum;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -40,7 +41,7 @@ public class Player {
     }
 
     public Hero dameHeroHighest() {
-        return herosAlive().stream().max(Comparator.comparingInt(Hero::getAttack)).orElse(null);
+        return herosAlive().stream().filter(h -> h.getId().equals(HeroIdEnum.CERBERUS)).findFirst().orElse(herosAlive().get(0));
     }
 
     public Hero hpHeroHighest() {

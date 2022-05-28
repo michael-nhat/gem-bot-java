@@ -39,9 +39,10 @@ public enum GemModifier {
             case EXPLODE_HORIZONTAL:
                 return 10;
             case MANA:
-            case HIT_POINT:
             case BUFF_ATTACK:
                 return 3;
+            case HIT_POINT:
+                return 1;
             default:
                 return 0;
         }
